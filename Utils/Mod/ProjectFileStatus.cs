@@ -1,4 +1,4 @@
-namespace PCL.Core.Utils.ResourceProject;
+namespace PCL.Core.Utils.Mod;
 
 public enum ProjectFileStatus
 {
