@@ -1,8 +1,8 @@
 using Microsoft.Toolkit.Uwp.Notifications;
 
-namespace PCL.Core.Utils;
+namespace PCL.Core.Helper;
 
-public class ToastNotification
+public static class ToastNotification
 {
     /// <summary>
     /// Send a Toast notification with simple texts to the system.

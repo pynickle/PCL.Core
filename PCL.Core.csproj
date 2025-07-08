@@ -143,6 +143,7 @@
     <Compile Include="Helper\LogWrapper.cs" />
     <Compile Include="Helper\NativeInterop.cs" />
     <Compile Include="Helper\SemVer.cs" />
+    <Compile Include="Helper\ToastNotification.cs" />
     <Compile Include="Helper\VarInt.cs" />
     <Compile Include="LifecycleManagement\ILifecycleLogService.cs" />
     <Compile Include="LifecycleManagement\ILifecycleService.cs" />
@@ -193,7 +194,6 @@
     <Compile Include="Utils\RoutedWebServer.cs" />
     <Compile Include="Utils\StringStream.cs" />
     <Compile Include="Utils\System.Runtime.CompilerServices.cs" />
-    <Compile Include="Utils\ToastNotification.cs" />
     <Compile Include="Utils\VersionRange.cs" />
     <Compile Include="Utils\WebServer.cs" />
   </ItemGroup>
