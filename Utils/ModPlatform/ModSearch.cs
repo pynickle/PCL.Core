@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using PCL.Core.Service.MinecraftService;
+using PCL.Core.Utils.Minecraft;
 
-namespace PCL.Core.Service.ModPlatformService;
+namespace PCL.Core.Utils.ModPlatform;
 
 public record ModSearch(
     string keyWord,

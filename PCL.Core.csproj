@@ -174,13 +174,6 @@
     <Compile Include="Service\ApplicationService.cs" />
     <Compile Include="Service\HttpClientService.cs" />
     <Compile Include="Service\LogService.cs" />
-    <Compile Include="Service\MinecraftService\ModLoaders.cs" />
-    <Compile Include="Service\ModPlatformService\IModPlatformService.cs" />
-    <Compile Include="Service\ModPlatformService\ModFileChannel.cs" />
-    <Compile Include="Service\ModPlatformService\ModrinthFactsBuilder.cs" />
-    <Compile Include="Service\ModPlatformService\ModrinthPlatformService.cs" />
-    <Compile Include="Service\ModPlatformService\ModSearch.cs" />
-    <Compile Include="Service\ModPlatformService\ModProjectType.cs" />
     <Compile Include="Service\RpcService.cs" />
     <Compile Include="Service\MainWindowService.cs" />
     <Compile Include="Utils\AtomicVariable.cs" />
@@ -194,6 +187,13 @@
     <Compile Include="Utils\Logger\Logger.cs" />
     <Compile Include="Utils\Logger\LoggerConfiguration.cs" />
     <Compile Include="Utils\Logger\LoggerSegmentMode.cs" />
+    <Compile Include="Utils\Minecraft\ModLoaders.cs" />
+    <Compile Include="Utils\ModPlatform\IModPlatformService.cs" />
+    <Compile Include="Utils\ModPlatform\ModFileChannel.cs" />
+    <Compile Include="Utils\ModPlatform\ModProjectType.cs" />
+    <Compile Include="Utils\ModPlatform\ModrinthFactsBuilder.cs" />
+    <Compile Include="Utils\ModPlatform\ModrinthPlatformService.cs" />
+    <Compile Include="Utils\ModPlatform\ModSearch.cs" />
     <Compile Include="Utils\PEHeaderReader.cs" />
     <Compile Include="Utils\RoutedWebServer.cs" />
     <Compile Include="Utils\StringStream.cs" />

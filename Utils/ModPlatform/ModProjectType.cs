@@ -1,4 +1,4 @@
-namespace PCL.Core.Service.ModPlatformService;
+namespace PCL.Core.Utils.ModPlatform;
 
 public enum ModProjectType
 {

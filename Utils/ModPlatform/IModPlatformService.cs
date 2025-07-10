@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using PCL.Core.Model.Mod;
 
-namespace PCL.Core.Service.ModPlatformService;
+namespace PCL.Core.Utils.ModPlatform;
 
 public interface IModPlatformService
 {

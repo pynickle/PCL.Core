@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using PCL.Core.Service.ModPlatformService;
+using PCL.Core.Utils.ModPlatform;
 
 namespace PCL.Core.Model.Mod;
 

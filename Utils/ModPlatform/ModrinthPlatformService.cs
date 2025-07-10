@@ -3,9 +3,10 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using PCL.Core.Model.Mod;
-using PCL.Core.Service.MinecraftService;
+using PCL.Core.Service;
+using PCL.Core.Utils.Minecraft;
 
-namespace PCL.Core.Service.ModPlatformService;
+namespace PCL.Core.Utils.ModPlatform;
 
 public class ModrinthPlatformService : IModPlatformService
 {

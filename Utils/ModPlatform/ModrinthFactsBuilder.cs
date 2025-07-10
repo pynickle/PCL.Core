@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace PCL.Core.Service.ModPlatformService;
+namespace PCL.Core.Utils.ModPlatform;
 
 public class ModrinthFactsBuilder
 {

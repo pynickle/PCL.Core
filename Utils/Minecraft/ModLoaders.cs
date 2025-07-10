@@ -1,4 +1,4 @@
-namespace PCL.Core.Service.MinecraftService;
+namespace PCL.Core.Utils.Minecraft;
 
 public enum ModLoaders
 {
