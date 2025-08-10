@@ -6,12 +6,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using PCL.Core.Extension;
+using PCL.Core.Utils.Exts;
 using PCL.Core.IO;
 using PCL.Core.Logging;
-using PCL.Core.Network;
+using PCL.Core.Net;
 using static PCL.Core.Link.Lobby.LobbyHandler;
 using static PCL.Core.Link.Natayark.NatayarkProfileManager;
+using PCL.Core.ProgramSetup;
 
 namespace PCL.Core.Link.EasyTier
 {
@@ -95,16 +96,52 @@ namespace PCL.Core.Link.EasyTier
                 }
 
                 // 节点设置
-                // TODO: 等待 Setup 迁移完成以获取自定义节点信息
-                foreach (var relay in EasyTierRelay.RelayList)
+                List<EasyTierRelay.ETRelay> relays = EasyTierRelay.RelayList;
+                string customNodes = SetupService.GetString(new SetupEntry(SetupEntrySource.SystemGlobal, "LinkRelayServer", ""));
+                foreach (string node in customNodes.Split([';'], StringSplitOptions.RemoveEmptyEntries))
                 {
-                    // TODO: 等待 Setup 迁移完成以获取允许的节点类型
-                    arguments += $" -p {relay.Url}";
+                    if (node.Contains("tcp://") || node.Contains("udp://"))
+                    {
+                        relays.Add(new EasyTierRelay.ETRelay
+                        {
+                            Url = node,
+                            Name = "Custom",
+                            Type = EasyTierRelay.ETRelayType.Custom
+                        });
+                    }
+                    else
+                    {
+                        LogWrapper.Warn("Link", $"无效的自定义节点 URL: {node}");
+                    }
+                }
+                foreach (var relay in relays)
+                {
+                    int serverType = SetupService.GetInt32(new SetupEntry(SetupEntrySource.SystemGlobal, "LinkServerType", 1));
+                    if ((relay.Type == EasyTierRelay.ETRelayType.Selfhosted && serverType != 2) || (relay.Type == EasyTierRelay.ETRelayType.Community && serverType == 1) || relay.Type == EasyTierRelay.ETRelayType.Custom)
+                    {
+                        arguments += $" -p {relay.Url}";
+                    }
                 }
 
-                // 中继行为设置，等待 Setup 迁移
+                // 中继行为设置
+                if (SetupService.GetInt32(new SetupEntry(SetupEntrySource.SystemGlobal, "LinkRelayType", 0)) == 1)
+                {
+                    arguments += " --disable-p2p";
+                }
 
-                // 数据流代理设置，等待 Setup 迁移
+                // 数据流代理设置
+                switch (SetupService.GetInt32(new SetupEntry(SetupEntrySource.SystemGlobal, "LinkProxyType", 1)))
+                {
+                    case 0:
+                        arguments += " --enable-quic-proxy";
+                        break;
+                    case 1:
+                        arguments += " --enable-kcp-proxy";
+                        break;
+                    default:
+                        arguments += " --enable-quic-proxy --enable-kcp-proxy";
+                        break;
+                }
 
                 // 用户名与其他参数
                 arguments += " --latency-first --compression=zstd --multi-thread";
