@@ -1,7 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
-    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    <Configuration Condition="'$(Configuration)' == ''">Publish</Configuration>
+	<RuntimeIdentifier Condition="'$(Platform)' == 'x64'">win-x64</RuntimeIdentifier>
+	<RuntimeIdentifier Condition="'$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
+	<RuntimeIdentifier Condition="'$(Platform)' == 'AnyCPU'">win-x64</RuntimeIdentifier>
     <OutputType>Library</OutputType>
     <LangVersion>12</LangVersion>
     <Nullable>enable</Nullable>
