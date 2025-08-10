@@ -4,10 +4,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using PCL.Core.LifecycleManagement;
-using PCL.Core.Native;
+using System.Threading.Tasks;
+using PCL.Core.App;
+using PCL.Core.ProgramSetup;
 using PCL.Core.UI;
 using PCL.Core.Utils;
+using PCL.Core.Utils.OS;
+using PCL.Core.Utils.Threading;
 using Special = System.Environment.SpecialFolder;
 
 namespace PCL.Core.IO;
@@ -16,17 +19,24 @@ public static class PredefinedFileItems
 {
     public static readonly FileItem CacheInformation = FileItem.FromLocalFile("cache.txt", FileType.Temporary);
     public static readonly FileItem GrayProfile = FileItem.FromLocalFile("gray.json", FileType.Data);
+    public static readonly FileItem GlobalSetup = new("config.json", FileType.SharedData,
+        Sources: [FileService.GetSpecialPath(Special.ApplicationData, Path.Combine("." + SetupService.GlobalSetupFolder, "Config.json"))]);
+    public static readonly FileItem LocalSetup = FileItem.FromLocalFile("setup.ini", FileType.Data);
 }
 
 public static class PredefinedFileTasks
 {
     public static readonly IFileTask CacheInformation = FileTask.FromSingleFile(PredefinedFileItems.CacheInformation, FileTransfers.DoNothing);
     public static readonly IFileTask GrayProfile = FileTask.FromSingleFile(PredefinedFileItems.GrayProfile, FileTransfers.DoNothing, FileProcesses.ParseJson<GrayProfileConfig>());
+    public static readonly IFileTask GlobalSetup = FileTask.FromSingleFile(PredefinedFileItems.GlobalSetup, SetupService.MigrateGlobalSetupFile, FileProcesses.Deserialize(SetupService.GlobalFileSerializer));
+    public static readonly IFileTask LocalSetup = FileTask.FromSingleFile(PredefinedFileItems.LocalSetup, FileTransfers.DoNothing, FileProcesses.Deserialize(SetupService.LocalFileSerializer));
     
     internal static readonly IFileTask[] Preload = [
-        CacheInformation, GrayProfile
+        CacheInformation, GrayProfile, GlobalSetup, LocalSetup
     ];
 }
+
+public class ResultFailedException(Exception innerException) : Exception(innerException.Message, innerException);
 
 /// <summary>
 /// Global file management service.
@@ -40,7 +50,7 @@ public sealed class FileService : GeneralService
     /// <summary>
     /// The default directory used for relative path combining.
     /// </summary>
-    public static string DefaultDirectory => NativeInterop.ExecutableDirectory;
+    public static string DefaultDirectory => Basics.ExecutableDirectory;
 
     private static string _dataPath;
     private static string _sharedDataPath;
@@ -93,10 +103,10 @@ public sealed class FileService : GeneralService
         _tempPath = Path.Combine(Path.GetTempPath(), name);
 #if DEBUG
         // read environment variables
-        NativeInterop.ReadEnvironmentVariable("PCL_PATH", ref _dataPath);
-        NativeInterop.ReadEnvironmentVariable("PCL_PATH_SHARED", ref _sharedDataPath);
-        NativeInterop.ReadEnvironmentVariable("PCL_PATH_LOCAL", ref _localDataPath);
-        NativeInterop.ReadEnvironmentVariable("PCL_PATH_TEMP", ref _tempPath);
+        EnvironmentInterop.ReadVariable("PCL_PATH", ref _dataPath);
+        EnvironmentInterop.ReadVariable("PCL_PATH_SHARED", ref _sharedDataPath);
+        EnvironmentInterop.ReadVariable("PCL_PATH_LOCAL", ref _localDataPath);
+        EnvironmentInterop.ReadVariable("PCL_PATH_TEMP", ref _tempPath);
 #endif
         // create directories
         Directory.CreateDirectory(_dataPath);
@@ -120,7 +130,7 @@ public sealed class FileService : GeneralService
     {
         // start load thread
         Context.Debug("正在启动文件加载守护线程");
-        _fileLoadingThread = NativeInterop.RunInNewThread(_FileLoadCallback, "Daemon/FileLoading");
+        _fileLoadingThread = Basics.RunInNewThread(_FileLoadCallback, "Daemon/FileLoading");
         // invoke initialize
         _Initialize();
     }
@@ -136,8 +146,7 @@ public sealed class FileService : GeneralService
 
     #region Process
 
-    private static readonly List<FileMatchPair<FileTransfer>> _DefaultTransfers = [
-    ];
+    private static readonly List<FileMatchPair<FileTransfer>> _DefaultTransfers = [];
     
     private static readonly List<FileMatchPair<FileProcess>> _DefaultProcesses = [];
 
@@ -155,19 +164,19 @@ public sealed class FileService : GeneralService
 
     private static readonly ConcurrentQueue<IFileTask> _PendingTasks = [];
     
-    private static readonly ConcurrentDictionary<FileItem, AtomicVariable<object>> _ProcessResults = [];
-    private static readonly ConcurrentDictionary<FileItem, ManualResetEventSlim> _WaitForResultEvents = [];
+    private static readonly ConcurrentDictionary<FileItem, AtomicVariable<AnyType>> _ProcessResults = [];
+    private static readonly ConcurrentDictionary<FileItem, AsyncManualResetEvent> _WaitForResultEvents = [];
     private static readonly AutoResetEvent _ContinueEvent = new(false);
     private static bool _running = true;
 
     private static void _FileLoadCallback()
     {
         int? threadLimit = null;
-        NativeInterop.ReadEnvironmentVariable("PCL_FILE_THREAD_LIMIT", ref threadLimit);
+        EnvironmentInterop.ReadVariable("PCL_FILE_THREAD_LIMIT", ref threadLimit);
         
         // CPU 密集工作线程应使用性能内核的数量限制（超线程一并计入），防止跑到能效内核上
         // 如果这个死人调度还给往能效内核上扔就没法了，砍掉 Windows 即可解决
-        threadLimit ??= NativeInterop.GetPerformanceLogicalProcessorCount();
+        threadLimit ??= KernelInterop.GetPerformanceLogicalProcessorCount();
         
         Context.Info($"以最多 {threadLimit} 个线程初始化线程池");
         var threadPool = new DualThreadPool((int)threadLimit);
@@ -203,12 +212,12 @@ public sealed class FileService : GeneralService
                             }
                             catch (TransferFailedException ex)
                             {
-                                Context.Info("文件传输失败，将尝试其它传输实现", ex);
+                                Context.Info($"文件传输失败 ({ex.Reason}), 尝试另一实现", ex.InnerException);
                             }
                             catch (Exception ex)
                             {
                                 Context.Warn($"文件传输出错: {item}", ex);
-                                OnProcessFinished(item, ex);
+                                OnProcessFinished(item, new AnyType(ex, true));
                                 break;
                             }
                         }
@@ -223,6 +232,7 @@ public sealed class FileService : GeneralService
                     threadPool.QueueCpu(() =>
                     {
                         object? result;
+                        var isException = false;
                         if (process == null) result = null;
                         else
                         {
@@ -231,20 +241,21 @@ public sealed class FileService : GeneralService
                             {
                                 Context.Warn($"文件处理出错: {item}", ex);
                                 result = ex;
+                                isException = true;
                             }
                         }
-                        OnProcessFinished(item, result);
+                        OnProcessFinished(item, AnyType.FromNullable(result, isException));
                     });
                 }
 
-                void OnProcessFinished(FileItem finishedItem, object? result, bool removeHandled = true)
+                void OnProcessFinished(FileItem finishedItem, AnyType? result, bool removeHandled = true)
                 {
                     threadPool.QueueCpu(() =>
                     {
-                        var atomicResult = new AtomicVariable<object>(result, true, true);
+                        var atomicResult = new AtomicVariable<AnyType>(result, true, true);
                         _ProcessResults.AddOrUpdate(item, atomicResult, (_, _) => atomicResult);
                         // 触发等待事件
-                        if (_WaitForResultEvents.TryGetValue(finishedItem, out var waitEvent)) waitEvent.Set();
+                        if (_WaitForResultEvents.TryRemove(finishedItem, out var waitEvent)) waitEvent.Set();
                         try
                         {
                             var handled = task.OnProcessFinished(finishedItem, result);
@@ -285,8 +296,9 @@ public sealed class FileService : GeneralService
     /// <param name="item">which file to get the result</param>
     /// <param name="result">a <b>nullable</b> value, also <c>null</c> if not succeed</param>
     /// <param name="remove">whether remove from the temp dictionary after successfully get the value</param>
+    /// <param name="throwException">whether throws if the result has dropped into an exception</param>
     /// <returns><c>true</c> if succeeded, or <c>false</c> if no result</returns>
-    public static bool TryGetResult(FileItem item, out AnyType? result, bool remove = true)
+    public static bool TryGetResult(FileItem item, out AnyType? result, bool remove = true, bool throwException = false)
     {
         _ProcessResults.TryGetValue(item, out var atomicResult);
         if (atomicResult == null)
@@ -294,12 +306,12 @@ public sealed class FileService : GeneralService
             result = null;
             return false;
         }
-        var value = atomicResult.Value;
-        result = (value == null) ? null : new AnyType(value);
+        result = atomicResult.Value;
         if (remove) _ProcessResults.TryRemove(item, out _);
+        if (throwException && result?.HasException == true) throw new ResultFailedException(result.LastException!);
         return true;
     }
-    
+
     /// <param name="item">which file to get the result</param>
     /// <param name="remove">whether remove from the temp dictionary after successfully get the value</param>
     /// <returns>a <b>nullable</b> value</returns>
@@ -313,20 +325,42 @@ public sealed class FileService : GeneralService
     /// <param name="item">which file to wait for the result</param>
     /// <param name="timeout">the maximum waiting time</param>
     /// <param name="remove">whether remove from the temp dictionary after successfully get the value</param>
+    /// <param name="throwException">whether throws if the result has dropped into an exception</param>
     /// <returns>
     /// a value, or <c>null</c> if the result is really <c>null</c>, or else, something is boom -
     /// I don't know what is wrong but in a word there is something wrong :D
     /// </returns>
-    public static AnyType? WaitForResult(FileItem item, TimeSpan? timeout = null, bool remove = true)
+    public static AnyType? WaitForResult(FileItem item, TimeSpan? timeout = null, bool remove = true, bool throwException = false)
     {
-        var success = TryGetResult(item, out var result, remove);
+        var success = TryGetResult(item, out var result, remove, throwException);
         if (success) return result;
-        var waitEvent = _WaitForResultEvents.GetOrAdd(item, _ => new ManualResetEventSlim(false));
+        var waitEvent = _WaitForResultEvents.GetOrAdd(item, _ => new AsyncManualResetEvent());
         var waitResult = true;
         if (timeout is { } t) waitResult = waitEvent.Wait(t);
         else waitEvent.Wait();
         if (!waitResult) return null;
-        TryGetResult(item, out result);
+        TryGetResult(item, out result, remove, throwException);
+        return result;
+    }
+
+    /// <param name="item">which file to wait for the result</param>
+    /// <param name="cancelToken">the cancellation token to stop waiting</param>
+    /// <param name="remove">whether remove from the temp dictionary after successfully get the value</param>
+    /// <param name="throwException">whether throws if the result has dropped into an exception</param>
+    /// <returns>
+    /// a value, or <c>null</c> if the result is really <c>null</c>, or else, something is boom -
+    /// I don't know what is wrong but in a word there is something wrong :D
+    /// </returns>
+    public static async Task<AnyType?> WaitForResultAsync(FileItem item, CancellationToken cancelToken = default, bool remove = true, bool throwException = false)
+    {
+        var success = TryGetResult(item, out var result, remove, throwException);
+        if (success) return result;
+        var waitEvent = _WaitForResultEvents.GetOrAdd(item, _ => new AsyncManualResetEvent());
+        var waitResult = true;
+        cancelToken.Register(() => waitResult = false);
+        await waitEvent.WaitAsync(cancelToken);
+        if (!waitResult) return null;
+        TryGetResult(item, out result, remove, throwException);
         return result;
     }
 
