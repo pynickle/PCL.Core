@@ -100,12 +100,18 @@ public class McPing : IDisposable
         LogWrapper.Debug("McPing",$"ServerDataLength: {dataLength}");
         if (dataLength > retBinary.Length) throw new Exception("The server data is too large");
         var retCtx = Encoding.UTF8.GetString([.. retBinary.Skip(1 + packDataHeaderLength).Take(dataLength)]);
-#if DEBUG
-        LogWrapper.Debug("McPing", retCtx);
-#endif
         // 反实例化
         var retJson = JsonNode.Parse(retCtx) ?? throw new NullReferenceException("服务器返回了错误的信息");
-
+#if DEBUG
+        var resJsonDebug = retJson.DeepClone();
+        // 检查根节点是否为 JSON 对象，并且包含 "favicon" 属性
+        if (resJsonDebug is JsonObject jsonObject && jsonObject.ContainsKey("favicon")) {
+            // 将 "favicon" 属性的值替换为省略号
+            jsonObject["favicon"] = "...";
+        }
+        
+        LogWrapper.Debug("McPing", resJsonDebug.ToJsonString(null));
+#endif
         var versionNode = retJson["version"] ?? throw new NullReferenceException("服务器返回了错误的字段，缺失: version");
         var playersNode = retJson["players"] ?? new JsonObject();
         var descNode = _convertJNodeToMcString(retJson["description"] ?? new JsonObject());
