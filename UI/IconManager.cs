@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
 using System.Windows;
 using System.Windows.Markup;
 
@@ -24,20 +23,17 @@ public class IconManager : INotifyPropertyChanged {
     }
 
     public bool SetSelectedIconByName(string name) {
-        if (_iconIndex.TryGetValue(name, out var icon))
-        {
+        if (_iconIndex.TryGetValue(name, out var icon)) {
             SelectedIcon = icon;
             return true;
         }
         return false;
     }
 
-    public bool AddIconFromXaml(string name, string xamlString)
-    {
-        if (string.IsNullOrEmpty(name) || _iconIndex.ContainsKey(name)) return false; // 避免重复
+    public bool AddIconFromXaml(string name, string xamlString) {
+        if (string.IsNullOrWhiteSpace(name) || _iconIndex.ContainsKey(name)) return false; // 避免重复
 
-        if (TryLoadIconFromXaml(xamlString, out var content))
-        {
+        if (TryLoadIconFromXaml(xamlString, out var content)) {
             var model = new IconModel(name, content);
             Icons.Add(model);
             _iconIndex[name] = model;
@@ -47,10 +43,8 @@ public class IconManager : INotifyPropertyChanged {
     }
 
     // 可选：添加移除方法
-    public void RemoveIconByName(string name)
-    {
-        if (_iconIndex.TryGetValue(name, out var icon))
-        {
+    public void RemoveIconByName(string name) {
+        if (_iconIndex.TryGetValue(name, out var icon)) {
             Icons.Remove(icon);
             _iconIndex.Remove(name);
         }
@@ -64,8 +58,7 @@ public class IconManager : INotifyPropertyChanged {
 
         try {
             // 确保在UI线程执行
-            if (!Application.Current.Dispatcher.CheckAccess())
-            {
+            if (!Application.Current.Dispatcher.CheckAccess()) {
                 throw new InvalidOperationException("XAML 解析需要在 UI 线程执行。");
             }
 
