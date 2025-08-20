@@ -47,7 +47,8 @@ public static class NbtFileHandler
     /// </summary>
     /// <param name="nbtList">要写入文件的 NbtList 对象。</param>
     /// <param name="filePath">目标文件路径。</param>
-    public static void WriteNbtFile(NbtList nbtList, string filePath) {
+    /// <param name="compression">NBT 文件的压缩类型，默认为 NbtCompression.None。</param>
+    public static void WriteNbtFile(NbtList nbtList, string filePath, NbtCompression compression = NbtCompression.None) {
         // 创建一个根节点（TAG_Compound）
         var rootTag = new NbtCompound();
         rootTag.Name = "";
@@ -59,9 +60,9 @@ public static class NbtFileHandler
         var nbtFile = new NbtFile(rootTag);
 
         try {
-            // 保存文件
+            // 保存文件，使用可选的压缩参数
             using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write)) {
-                nbtFile.SaveToStream(fs, NbtCompression.GZip);
+                nbtFile.SaveToStream(fs, compression);
             }
             LogWrapper.Info($"NBT file saved successfully at: {filePath}");
         } catch (Exception ex) {

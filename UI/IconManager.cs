@@ -9,7 +9,7 @@ namespace PCL.Core.UI;
 
 // 图标管理器（处理集合和选择逻辑）
 public class IconManager : INotifyPropertyChanged {
-    public ObservableCollection<IconModel> Icons { get; } = new();
+    private ObservableCollection<IconModel> Icons { get; } = new();
     private readonly Dictionary<string, IconModel> _iconIndex = new();
 
     private IconModel? _selectedIcon;
