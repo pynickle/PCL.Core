@@ -107,7 +107,7 @@ public class McPing : IDisposable
         var retJson = JsonNode.Parse(retCtx) ?? throw new NullReferenceException("服务器返回了错误的信息");
 
         var versionNode = retJson["version"] ?? throw new NullReferenceException("服务器返回了错误的字段，缺失: version");
-        var playersNode = retJson["players"] ?? throw new NullReferenceException("服务器返回了错误的字段，缺失: players");
+        var playersNode = retJson["players"] ?? new JsonObject();
         var descNode = _convertJNodeToMcString(retJson["description"] ?? new JsonObject());
         var modInfoNode = retJson["modinfo"];
         // 写完后发现可以先修改 description 到纯文本后再直接实例化，事已至此，先推送吧 :\
