@@ -50,24 +50,39 @@ public class IconManager : INotifyPropertyChanged {
         }
     }
     
-    
     // 从 XAML 字符串加载图标
     public static bool TryLoadIconFromXaml(string xamlString, out UIElement? icon) {
         icon = null;
         if (string.IsNullOrWhiteSpace(xamlString)) return false;
-
+        
+        // 确保在UI线程执行
+        if (!Application.Current.Dispatcher.CheckAccess()) {
+            return false;
+        }
+        
         try {
-            // 确保在UI线程执行
-            if (!Application.Current.Dispatcher.CheckAccess()) {
-                throw new InvalidOperationException("XAML 解析需要在 UI 线程执行。");
-            }
-
             icon = (UIElement)XamlReader.Parse(xamlString);
             return true;
         }
         catch (Exception) {
             return false;
         }
+    }
+    
+    // 从 XAML 字符串加载图标
+    public static bool LoadIconFromXaml(string xamlString, out UIElement? icon) {
+        icon = null;
+        if (string.IsNullOrWhiteSpace(xamlString)) {
+            throw new ArgumentNullException(nameof(xamlString), "XAML 字符串不能为空或空白。");
+        }
+        
+        // 确保在UI线程执行
+        if (!Application.Current.Dispatcher.CheckAccess()) {
+            throw new InvalidOperationException("XAML 解析需要在 UI 线程执行。");
+        }
+        
+        icon = (UIElement)XamlReader.Parse(xamlString);
+        return true;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
