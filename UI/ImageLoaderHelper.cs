@@ -34,6 +34,7 @@ public static class ImageLoaderHelper {
         string base64String, 
         Image imageElement, 
         string fallbackImageUri = null) {
+        LogWrapper.Debug("设置图像，Base64 字符串长度：" + base64String?.Length);
         if (imageElement == null)
             throw new ArgumentNullException(nameof(imageElement));
 
@@ -50,6 +51,7 @@ public static class ImageLoaderHelper {
 
             // 验证 Base64 字符串
             if (string.IsNullOrWhiteSpace(base64Data)) {
+                LogWrapper.Warn("Base64Data 为空，使用后备图像");
                 SetFallbackImage(imageElement, fallbackImageUri);
                 return;
             }
