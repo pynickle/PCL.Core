@@ -15,7 +15,7 @@ using System.Windows.Media.Imaging;
 public partial class MotdRenderer {
     // Default Color for originalColorMap: #808080
     // Minecraft color code mapping
-    private readonly Dictionary<string, Brush> _colorMapWithBlackBackground = new Dictionary<string, Brush> {
+    private readonly Dictionary<string, Brush> _colorMapWithBlackBackground = new() {
         { "0", Brushes.Black }, // Black
         { "1", new SolidColorBrush(Color.FromRgb(0, 0, 170)) }, // Dark Blue
         { "2", new SolidColorBrush(Color.FromRgb(0, 170, 0)) }, // Dark Green
@@ -35,7 +35,7 @@ public partial class MotdRenderer {
     };
 
     // Color code mapping optimized for white background (#f3f6fa)
-    private readonly Dictionary<string, Brush> _colorMapWithWhiteBackground = new Dictionary<string, Brush> {
+    private readonly Dictionary<string, Brush> _colorMapWithWhiteBackground = new() {
         { "0", new SolidColorBrush(Color.FromRgb(51, 51, 51)) }, // Deep Gray #333333
         { "1", new SolidColorBrush(Color.FromRgb(0, 48, 135)) }, // Navy Blue #003087
         { "2", new SolidColorBrush(Color.FromRgb(0, 128, 0)) }, // Forest Green #008000
@@ -55,7 +55,7 @@ public partial class MotdRenderer {
     };
 
     // Format code mapping
-    private readonly Dictionary<string, bool> _formatMap = new Dictionary<string, bool> {
+    private readonly Dictionary<string, bool> _formatMap = new() {
         { "l", true }, // Bold
         { "o", true }, // Italic
         { "n", true }, // Underline
@@ -65,12 +65,15 @@ public partial class MotdRenderer {
     };
 
     // Store TextBlock and original text for §k obfuscated text
-    private readonly List<(TextBlock TextBlock, string OriginalText)> _obfuscatedTextBlocks =
-        new List<(TextBlock, string)>();
+    private readonly List<(TextBlock TextBlock, string OriginalText)> _obfuscatedTextBlocks = [];
 
-    private readonly Random _random = new Random();
+    private readonly Random _random = new();
     private readonly string _randomChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
     private readonly Color _backgroundColor = Color.FromRgb(243, 246, 250); // #f3f6fa
+    
+    // 编译器将在编译时生成这个方法的实现
+    [GeneratedRegex("^#[0-9A-Fa-f]{6}$", RegexOptions.Compiled)]
+    private static partial Regex _HexColorRegex();
 
     public MotdRenderer() {
         InitializeComponent(); // 初始化 XAML 定义的控件
@@ -98,32 +101,32 @@ public partial class MotdRenderer {
     }
 
     private double _GetRelativeLuminance(Color color) {
-        double r = color.R / 255.0;
-        double g = color.G / 255.0;
-        double b = color.B / 255.0;
-        double rL = r <= 0.03928 ? r / 12.92 : Math.Pow((r + 0.055) / 1.055, 2.4);
-        double gL = g <= 0.03928 ? g / 12.92 : Math.Pow((g + 0.055) / 1.055, 2.4);
-        double bL = b <= 0.03928 ? b / 12.92 : Math.Pow((b + 0.055) / 1.055, 2.4);
+        var r = color.R / 255.0;
+        var g = color.G / 255.0;
+        var b = color.B / 255.0;
+        var rL = r <= 0.03928 ? r / 12.92 : Math.Pow((r + 0.055) / 1.055, 2.4);
+        var gL = g <= 0.03928 ? g / 12.92 : Math.Pow((g + 0.055) / 1.055, 2.4);
+        var bL = b <= 0.03928 ? b / 12.92 : Math.Pow((b + 0.055) / 1.055, 2.4);
         return 0.2126 * rL + 0.7152 * gL + 0.0722 * bL;
     }
 
     private double _GetContrastRatio(Color foreground, Color background) {
-        double l1 = _GetRelativeLuminance(foreground);
-        double l2 = _GetRelativeLuminance(background);
+        var l1 = _GetRelativeLuminance(foreground);
+        var l2 = _GetRelativeLuminance(background);
         return (Math.Max(l1, l2) + 0.05) / (Math.Min(l1, l2) + 0.05);
     }
 
     private Color _AdjustColorForContrast(Color inputColor) {
-        double contrastRatio = _GetContrastRatio(inputColor, _backgroundColor);
+        var contrastRatio = _GetContrastRatio(inputColor, _backgroundColor);
         if (contrastRatio >= 4.5) return inputColor; // Contrast is sufficient
 
         // Convert RGB to HSL
-        double r = inputColor.R / 255.0;
-        double g = inputColor.G / 255.0;
-        double b = inputColor.B / 255.0;
-        double max = Math.Max(Math.Max(r, g), b);
-        double min = Math.Min(Math.Min(r, g), b);
-        double l = (max + min) / 2.0;
+        var r = inputColor.R / 255.0;
+        var g = inputColor.G / 255.0;
+        var b = inputColor.B / 255.0;
+        var max = Math.Max(Math.Max(r, g), b);
+        var min = Math.Min(Math.Min(r, g), b);
+        var l = (max + min) / 2.0;
         double s;
         double h;
 
@@ -131,7 +134,7 @@ public partial class MotdRenderer {
             h = 0.0;
             s = 0.0;
         } else {
-            double d = max - min;
+            var d = max - min;
             s = l > 0.5 ? d / (2.0 - max - min) : d / (max + min);
             h = max switch {
                 _ when Math.Abs(max - r) < double.Epsilon => (g - b) / d + (g < b ? 6.0 : 0.0),
@@ -142,8 +145,8 @@ public partial class MotdRenderer {
         }
 
         // Decrease lightness until contrast ratio ≥ 4.5:1
-        double newL = l;
-        Color adjustedColor = inputColor;
+        var newL = l;
+        var adjustedColor = inputColor;
         while (newL > 0.1 && _GetContrastRatio(adjustedColor, _backgroundColor) < 4.5) {
             newL -= 0.05; // Gradually decrease lightness
             double newR, newG, newB;
@@ -163,11 +166,7 @@ public partial class MotdRenderer {
         }
 
         // If contrast is still insufficient, use default color #555555
-        if (_GetContrastRatio(adjustedColor, _backgroundColor) < 4.5) {
-            return Color.FromRgb(85, 85, 85); // colorMap["f"]
-        }
-
-        return adjustedColor;
+        return _GetContrastRatio(adjustedColor, _backgroundColor) < 4.5 ? Color.FromRgb(85, 85, 85) : adjustedColor;
     }
 
     private double _HueToRgb(double p, double q, double t) {
@@ -184,13 +183,13 @@ public partial class MotdRenderer {
         _obfuscatedTextBlocks.Clear();
 
         var colorMap = isWhiteBackground ? _colorMapWithWhiteBackground : _colorMapWithBlackBackground;
-        string font = Setup.Ui.Font; // Assuming Setup is a static class accessible in the project
+        var font = Setup.Ui.Font; // Assuming Setup is a static class accessible in the project
         var fontFamily = new FontFamily(string.IsNullOrWhiteSpace(font)
             ? "./Resources/#PCL English, Segoe UI, Microsoft YaHei UI"
             : font);
         double fontSize = 12;
-        double canvasWidth = MotdCanvas.ActualWidth > 0 ? MotdCanvas.ActualWidth : 300; // Prevent zero width
-        double canvasHeight = MotdCanvas.ActualHeight > 0 ? MotdCanvas.ActualHeight : 34; // Prevent zero height
+        var canvasWidth = MotdCanvas.ActualWidth > 0 ? MotdCanvas.ActualWidth : 300; // Prevent zero width
+        var canvasHeight = MotdCanvas.ActualHeight > 0 ? MotdCanvas.ActualHeight : 34; // Prevent zero height
         double y = 10;
 
         // Regex to match § codes and RGB colors
@@ -200,15 +199,15 @@ public partial class MotdRenderer {
         motd = motd.Replace("\n", "\r\n");
         string[] lines = motd.Split("\r\n");
         Brush currentColor = colorMap["f"];
-        bool isBold = false;
-        bool isItalic = false;
-        bool isUnderline = false;
-        bool isStrikethrough = false;
-        bool isObfuscated = false;
+        var isBold = false;
+        var isItalic = false;
+        var isUnderline = false;
+        var isStrikethrough = false;
+        var isObfuscated = false;
 
         for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++) {
-            string line = lines[lineIndex].Trim();
-            string[] parts = regex.Split(line);
+            var line = lines[lineIndex].Trim();
+            var parts = regex.Split(line);
 
             // Calculate line width
             double lineWidth = 0;
@@ -217,32 +216,44 @@ public partial class MotdRenderer {
             var textBlocks = new List<TextBlock>(); // Store TextBlocks for the line
             var positions = new List<double>(); // Store x-coordinates for each TextBlock
 
-            foreach (string part in parts) {
+            foreach (var part in parts) {
                 if (string.IsNullOrEmpty(part)) continue;
 
                 // Handle § color codes
-                if (part.StartsWith("§") && part.Length == 2) {
-                    string code = part.Substring(1).ToLower();
-                    if (colorMap.ContainsKey(code)) {
-                        currentColor = colorMap[code];
+                if (part.StartsWith('§') && part.Length == 2) {
+                    var code = part.Substring(1).ToLower();
+                    if (colorMap.TryGetValue(code, out var brush)) {
+                        currentColor = brush;
                         isBold = false;
                         isItalic = false;
                         isUnderline = false;
                         isStrikethrough = false;
                         isObfuscated = false;
                     } else if (_formatMap.ContainsKey(code)) {
-                        if (code == "l") isBold = true;
-                        if (code == "o") isItalic = true;
-                        if (code == "n") isUnderline = true;
-                        if (code == "m") isStrikethrough = true;
-                        if (code == "k") isObfuscated = true;
-                        if (code == "r") {
-                            currentColor = colorMap["f"];
-                            isBold = false;
-                            isItalic = false;
-                            isUnderline = false;
-                            isStrikethrough = false;
-                            isObfuscated = false;
+                        switch (code) {
+                            case "l":
+                                isBold = true;
+                                break;
+                            case "o":
+                                isItalic = true;
+                                break;
+                            case "n":
+                                isUnderline = true;
+                                break;
+                            case "m":
+                                isStrikethrough = true;
+                                break;
+                            case "k":
+                                isObfuscated = true;
+                                break;
+                            case "r":
+                                currentColor = colorMap["f"];
+                                isBold = false;
+                                isItalic = false;
+                                isUnderline = false;
+                                isStrikethrough = false;
+                                isObfuscated = false;
+                                break;
                         }
                     }
 
@@ -250,12 +261,12 @@ public partial class MotdRenderer {
                 }
 
                 // Handle RGB color codes
-                if (Regex.IsMatch(part, "^#[0-9A-Fa-f]{6}$")) {
+                if (_HexColorRegex().IsMatch(part)) {
                     try {
-                        string hex = part.Substring(1);
-                        byte r = Convert.ToByte(hex.Substring(0, 2), 16);
-                        byte g = Convert.ToByte(hex.Substring(2, 2), 16);
-                        byte b = Convert.ToByte(hex.Substring(4, 2), 16);
+                        var hex = part.Substring(1);
+                        var r = Convert.ToByte(hex.Substring(0, 2), 16);
+                        var g = Convert.ToByte(hex.Substring(2, 2), 16);
+                        var b = Convert.ToByte(hex.Substring(4, 2), 16);
                         Color inputColor = Color.FromRgb(r, g, b);
                         currentColor = new SolidColorBrush(_AdjustColorForContrast(inputColor));
                         isBold = false;
@@ -298,28 +309,33 @@ public partial class MotdRenderer {
                     tempX += _MeasureTextWidth(part, fontFamily, fontSize, isBold, isItalic);
                 }
 
-                double textHeight = _MeasureTextHeight(part, fontFamily, fontSize, isBold, isItalic);
+                var textHeight = _MeasureTextHeight(part, fontFamily, fontSize, isBold, isItalic);
                 lineHeight = textHeight > lineHeight ? textHeight : lineHeight;
                 lineWidth = tempX; // Update line width
             }
 
             // Center-align: Adjust x-coordinates for each TextBlock
-            double offsetX = (canvasWidth - lineWidth) / 2;
-            for (int i = 0; i < textBlocks.Count; i++) {
+            var offsetX = (canvasWidth - lineWidth) / 2;
+            for (var i = 0; i < textBlocks.Count; i++) {
                 Canvas.SetLeft(textBlocks[i], positions[i] + offsetX);
             }
 
-            if (lines.Length == 1) {
-                double offsetY = (canvasHeight - lineHeight) / 2;
-                for (int i = 0; i < textBlocks.Count; i++) {
-                    Canvas.SetTop(textBlocks[i], offsetY);
-                }
-            } else if (lines.Length == 2 && lineIndex == 0) {
-                double offsetY = (canvasHeight - lineHeight * 2) / 2;
-                for (int i = 0; i < textBlocks.Count; i++) {
-                    Canvas.SetTop(textBlocks[i], offsetY);
-                }
+            var offsetY = lines.Length switch {
+                // 只有一行文本
+                1 => (canvasHeight - lineHeight) / 2,
+                // 有两行文本，并且是第一行
+                2 when lineIndex == 0 => (canvasHeight - lineHeight * 2) / 2,
+                // 其他情况（可选，根据你的逻辑需要）
+                _ => 0 // 或者抛出异常，或者返回其他默认值
+            };
 
+            // 无论哪种情况，都在这里统一设置位置
+            foreach (var textBlock in textBlocks) {
+                Canvas.SetTop(textBlock, offsetY);
+            }
+
+            // 只有在特定条件下才更新 y 变量
+            if (lines.Length == 2 && lineIndex == 0) {
                 y = lineHeight + offsetY;
             }
         }
@@ -352,14 +368,14 @@ public partial class MotdRenderer {
 
         Canvas.SetLeft(textBlock, x);
         Canvas.SetTop(textBlock, y);
-        if (this.Content is Canvas canvas) {
+        if (Content is Canvas canvas) {
             canvas.Children.Add(textBlock);
         }
 
         return textBlock;
     }
 
-    private FormattedText _CreateFormattedText(string text, FontFamily fontFamily, double fontSize, bool isBold, bool isItalic)
+    private static FormattedText _CreateFormattedText(string text, FontFamily fontFamily, double fontSize, bool isBold, bool isItalic)
     {
         return new FormattedText(
             text,
@@ -372,11 +388,11 @@ public partial class MotdRenderer {
             96);
     }
 
-    private double _MeasureTextWidth(string text, FontFamily fontFamily, double fontSize, bool isBold, bool isItalic) {
+    private static double _MeasureTextWidth(string text, FontFamily fontFamily, double fontSize, bool isBold, bool isItalic) {
         return _CreateFormattedText(text, fontFamily, fontSize, isBold, isItalic).WidthIncludingTrailingWhitespace;
     }
 
-    private double _MeasureTextHeight(string text, FontFamily fontFamily, double fontSize, bool isBold, bool isItalic) {
+    private static double _MeasureTextHeight(string text, FontFamily fontFamily, double fontSize, bool isBold, bool isItalic) {
         return _CreateFormattedText(text, fontFamily, fontSize, isBold, isItalic).Height;
     }
 
@@ -385,9 +401,7 @@ public partial class MotdRenderer {
         MotdCanvas.UpdateLayout();
 
         // Generate static random characters for §k text
-        foreach (var item in _obfuscatedTextBlocks) {
-            var textBlock = item.TextBlock;
-            var originalText = item.OriginalText;
+        foreach (var (textBlock, originalText) in _obfuscatedTextBlocks) {
             textBlock.Text = string.Join("",
                 Enumerable.Range(0, originalText.Length).Select(_ => _randomChars[_random.Next(_randomChars.Length)]));
         }

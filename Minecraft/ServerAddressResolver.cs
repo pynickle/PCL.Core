@@ -30,7 +30,7 @@ public static class ServerAddressResolver {
         // 情况1: IP:端口
         if (address.Contains(':')) {
             var parts = address.Split(':');
-            if (parts.Length != 2 || !int.TryParse(parts[1], out int port)) {
+            if (parts.Length != 2 || !int.TryParse(parts[1], out var port)) {
                 throw new FormatException("无效的端口格式");
             }
 

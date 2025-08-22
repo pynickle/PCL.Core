@@ -15,7 +15,7 @@ public class NDnsQuery {
     private static extern void DnsRecordListFree(IntPtr pRecordList, int FreeType);
 
     public static List<string> GetSRVRecords(string needle) {
-        IntPtr ptr1 = IntPtr.Zero;
+        var ptr1 = IntPtr.Zero;
 
         if (Environment.OSVersion.Platform != PlatformID.Win32NT) {
             throw new NotSupportedException("此方法仅支持 Windows NT 及更高版本操作系统。");
@@ -23,7 +23,7 @@ public class NDnsQuery {
 
         var res = new List<string>();
         try {
-            int num1 = DnsQuery(needle, QueryTypes.DNS_TYPE_SRV, QueryOptions.DNS_QUERY_STANDARD, 0, ref ptr1, 0);
+            var num1 = DnsQuery(needle, QueryTypes.DNS_TYPE_SRV, QueryOptions.DNS_QUERY_STANDARD, 0, ref ptr1, 0);
             if (num1 != 0) {
                 // 9003 is DNS_ERROR_RCODE_NAME_ERROR, meaning the name doesn't exist
                 return num1 == 9003 ? [] : throw new Win32Exception(num1);
