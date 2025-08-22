@@ -123,9 +123,8 @@ public class Java(string javaFolder, Version version, JavaBrandType brand, bool 
             var isJavaUsable = (!isJavaJre && File.Exists(Path.Combine(javaLibDir, "jvm.lib"))) ||
                                (isJavaJre && File.Exists(Path.Combine(javaLibDir, "rt.jar")));
             var shouldDisableByDefault =
-                (isJavaJre && javaVersion.Major >= 16)
-                || (!isJava64Bit && Environment.Is64BitOperatingSystem)
-                || (isJava64Bit && !Environment.Is64BitOperatingSystem)
+                (isJavaJre && javaVersion.Major > 8)
+                || (isJava64Bit ^ Environment.Is64BitOperatingSystem)
                 || !isJavaUsable;
 
             return new Java(
@@ -163,8 +162,9 @@ public class Java(string javaFolder, Version version, JavaBrandType brand, bool 
     private static JavaBrandType DetermineBrand(string? output)
     {
         if (output == null) return JavaBrandType.Unknown;
-        var result = _brandMap.Keys.Where(item => output.IndexOf(item, StringComparison.OrdinalIgnoreCase) >= 0);
-        return result.Any()
+        var result = _brandMap.Keys
+            .Where(item => output.Contains(item, StringComparison.OrdinalIgnoreCase)).ToList();
+        return result.Count != 0
             ? _brandMap[result.First()]
             : JavaBrandType.Unknown;
     }
