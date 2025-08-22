@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Markup;
@@ -9,7 +8,6 @@ namespace PCL.Core.UI;
 
 // 图标管理器（处理集合和选择逻辑）
 public class IconManager : INotifyPropertyChanged {
-    private ObservableCollection<IconModel> Icons { get; } = new();
     private readonly Dictionary<string, IconModel> _iconIndex = new();
 
     private IconModel? _selectedIcon;
@@ -35,7 +33,6 @@ public class IconManager : INotifyPropertyChanged {
 
         if (TryLoadIconFromXaml(xamlString, out var content)) {
             var model = new IconModel(name, content);
-            Icons.Add(model);
             _iconIndex[name] = model;
             return true;
         }
@@ -44,8 +41,7 @@ public class IconManager : INotifyPropertyChanged {
 
     // 可选：添加移除方法
     public void RemoveIconByName(string name) {
-        if (_iconIndex.TryGetValue(name, out var icon)) {
-            Icons.Remove(icon);
+        if (_iconIndex.TryGetValue(name, out var _)) {
             _iconIndex.Remove(name);
         }
     }

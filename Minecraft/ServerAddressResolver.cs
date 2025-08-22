@@ -1,6 +1,7 @@
 ﻿using PCL.Core.Logging;
+using PCL.Core.Net;
 
-namespace PCL.Core.Net;
+namespace PCL.Core.Minecraft;
 
 using System;
 using System.Collections.Generic;
@@ -17,11 +18,9 @@ public static class ServerAddressResolver {
     /// <returns>包含IP和端口的元组。</returns>
     /// <exception cref="ArgumentException">地址为空或无效。</exception>
     /// <exception cref="FormatException">端口格式无效或SRV记录格式无效。</exception>
-    public static async Task<(string Ip, int Port)> GetReachableAddressAsync(string address)
-    {
+    public static async Task<(string Ip, int Port)> GetReachableAddressAsync(string address) {
         // 输入验证
-        if (string.IsNullOrWhiteSpace(address))
-        {
+        if (string.IsNullOrWhiteSpace(address)) {
             throw new ArgumentException("服务器地址不能为空", nameof(address));
         }
 
@@ -29,40 +28,34 @@ public static class ServerAddressResolver {
         address = address.Replace("http://", string.Empty).Replace("https://", string.Empty);
 
         // 情况1: IP:端口
-        if (address.Contains(":"))
-        {
+        if (address.Contains(':')) {
             var parts = address.Split(':');
-            if (parts.Length != 2 || !int.TryParse(parts[1], out int port))
-            {
+            if (parts.Length != 2 || !int.TryParse(parts[1], out int port)) {
                 throw new FormatException("无效的端口格式");
             }
+
             return (parts[0], port);
         }
 
         // 情况2: 纯IP (IPv4/IPv6)
-        if (IPAddress.TryParse(address, out _))
-        {
+        if (IPAddress.TryParse(address, out _)) {
             return (address, 25565);
         }
 
         // 情况3: 域名 (尝试SRV查询)
-        try
-        {
+        try {
             LogWrapper.Info($"尝试SRV查询: _minecraft._tcp.{address}");
-            var srvRecords = await ResolveSrvRecordsAsync(address);
+        
+            // 关键修复：使用 .ToList() 将可枚举的集合转换为列表，确保只枚举一次。
+            var srvRecords = (await _ResolveSrvRecordsAsync(address)).ToList();
 
-            if (srvRecords.Any())
-            {
-                var ret = ParseSrvRecord(srvRecords.First());
+            if (srvRecords.Count > 0) {
+                var ret = _ParseSrvRecord(srvRecords.First());
                 return ret;
             }
-        }
-        catch (SocketException ex)
-        {
+        } catch (SocketException ex) {
             LogWrapper.Warn(ex, "SRV查询失败 (网络错误)");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             LogWrapper.Warn(ex, "SRV查询异常");
         }
 
@@ -70,44 +63,30 @@ public static class ServerAddressResolver {
         return (address, 25565);
     }
 
-    private static async Task<IEnumerable<string>> ResolveSrvRecordsAsync(string domain)
-    {
-        return await Task.Run(() =>
-        {
-            try
-            {
+    private static async Task<IEnumerable<string>> _ResolveSrvRecordsAsync(string domain) {
+        return await Task.Run(() => {
+            try {
                 return NDnsQuery.GetSRVRecords($"_minecraft._tcp.{domain}");
-            }
-            catch
-            {
+            } catch {
                 return Enumerable.Empty<string>();
             }
         });
     }
 
-    private static (string Host, int Port) ParseSrvRecord(string record)
-    {
+    private static (string Host, int Port) _ParseSrvRecord(string record) {
         // 标准SRV格式: 优先级 权重 端口 主机
         // 按原VB.NET逻辑，先尝试按空格分割
-        var parts = record.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length >= 4 && int.TryParse(parts[2], out int port))
-        {
+        var parts = record.Split([' '], StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 4 && int.TryParse(parts[2], out var port)) {
             return (parts[3], port);
         }
 
         // 回退到原VB.NET处理逻辑，按冒号分割
         parts = record.Split(':');
-        if (parts.Length == 2 && int.TryParse(parts[1], out int fallbackPort))
-        {
-            return (parts[0], fallbackPort);
-        }
-        else if (parts.Length == 1)
-        {
-            return (parts[0], 25565);
-        }
-        else
-        {
-            throw new FormatException("无效的SRV记录格式");
-        }
+        return parts.Length switch {
+            2 when int.TryParse(parts[1], out var fallbackPort) => (parts[0], fallbackPort),
+            1 => (parts[0], 25565),
+            _ => throw new FormatException("无效的SRV记录格式")
+        };
     }
 }

@@ -12,7 +12,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows.Media.Imaging;
 
-public partial class MotdRenderer : UserControl {
+public partial class MotdRenderer {
     // Default Color for originalColorMap: #808080
     // Minecraft color code mapping
     private readonly Dictionary<string, Brush> _colorMapWithBlackBackground = new Dictionary<string, Brush> {
@@ -55,7 +55,7 @@ public partial class MotdRenderer : UserControl {
     };
 
     // Format code mapping
-    private readonly Dictionary<string, bool> formatMap = new Dictionary<string, bool> {
+    private readonly Dictionary<string, bool> _formatMap = new Dictionary<string, bool> {
         { "l", true }, // Bold
         { "o", true }, // Italic
         { "n", true }, // Underline
@@ -65,12 +65,12 @@ public partial class MotdRenderer : UserControl {
     };
 
     // Store TextBlock and original text for §k obfuscated text
-    private readonly List<(TextBlock TextBlock, string OriginalText)> obfuscatedTextBlocks =
+    private readonly List<(TextBlock TextBlock, string OriginalText)> _obfuscatedTextBlocks =
         new List<(TextBlock, string)>();
 
-    private readonly Random random = new Random();
-    private readonly string randomChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
-    private readonly Color backgroundColor = Color.FromRgb(243, 246, 250); // #f3f6fa
+    private readonly Random _random = new Random();
+    private readonly string _randomChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
+    private readonly Color _backgroundColor = Color.FromRgb(243, 246, 250); // #f3f6fa
 
     public MotdRenderer() {
         InitializeComponent(); // 初始化 XAML 定义的控件
@@ -78,7 +78,7 @@ public partial class MotdRenderer : UserControl {
         var timer = new DispatcherTimer {
             Interval = TimeSpan.FromMilliseconds(20)
         };
-        timer.Tick += UpdateObfuscatedText;
+        timer.Tick += _UpdateObfuscatedText;
         timer.Start();
     }
 
@@ -86,18 +86,18 @@ public partial class MotdRenderer : UserControl {
         
     }
 
-    private void UpdateObfuscatedText(object? sender, EventArgs e) {
-        foreach (var item in obfuscatedTextBlocks) {
+    private void _UpdateObfuscatedText(object? sender, EventArgs e) {
+        foreach (var item in _obfuscatedTextBlocks) {
             var textBlock = item.TextBlock;
             var originalText = item.OriginalText;
             // Generate random characters of the same length as the original text
             var obfuscated = string.Join("",
-                Enumerable.Range(0, originalText.Length).Select(i => randomChars[random.Next(randomChars.Length)]));
+                Enumerable.Range(0, originalText.Length).Select(_ => _randomChars[_random.Next(_randomChars.Length)]));
             textBlock.Text = obfuscated;
         }
     }
 
-    private double GetRelativeLuminance(Color color) {
+    private double _GetRelativeLuminance(Color color) {
         double r = color.R / 255.0;
         double g = color.G / 255.0;
         double b = color.B / 255.0;
@@ -107,14 +107,14 @@ public partial class MotdRenderer : UserControl {
         return 0.2126 * rL + 0.7152 * gL + 0.0722 * bL;
     }
 
-    private double GetContrastRatio(Color foreground, Color background) {
-        double l1 = GetRelativeLuminance(foreground);
-        double l2 = GetRelativeLuminance(background);
+    private double _GetContrastRatio(Color foreground, Color background) {
+        double l1 = _GetRelativeLuminance(foreground);
+        double l2 = _GetRelativeLuminance(background);
         return (Math.Max(l1, l2) + 0.05) / (Math.Min(l1, l2) + 0.05);
     }
 
-    private Color AdjustColorForContrast(Color inputColor) {
-        double contrastRatio = GetContrastRatio(inputColor, backgroundColor);
+    private Color _AdjustColorForContrast(Color inputColor) {
+        double contrastRatio = _GetContrastRatio(inputColor, _backgroundColor);
         if (contrastRatio >= 4.5) return inputColor; // Contrast is sufficient
 
         // Convert RGB to HSL
@@ -127,15 +127,15 @@ public partial class MotdRenderer : UserControl {
         double s;
         double h;
 
-        if (max == min) {
+        if (Math.Abs(max - min) < double.Epsilon) {
             h = 0.0;
             s = 0.0;
         } else {
             double d = max - min;
             s = l > 0.5 ? d / (2.0 - max - min) : d / (max + min);
             h = max switch {
-                _ when max == r => (g - b) / d + (g < b ? 6.0 : 0.0),
-                _ when max == g => (b - r) / d + 2.0,
+                _ when Math.Abs(max - r) < double.Epsilon => (g - b) / d + (g < b ? 6.0 : 0.0),
+                _ when Math.Abs(max - g) < double.Epsilon => (b - r) / d + 2.0,
                 _ => (r - g) / d + 4.0
             };
             h /= 6.0;
@@ -144,7 +144,7 @@ public partial class MotdRenderer : UserControl {
         // Decrease lightness until contrast ratio ≥ 4.5:1
         double newL = l;
         Color adjustedColor = inputColor;
-        while (newL > 0.1 && GetContrastRatio(adjustedColor, backgroundColor) < 4.5) {
+        while (newL > 0.1 && _GetContrastRatio(adjustedColor, _backgroundColor) < 4.5) {
             newL -= 0.05; // Gradually decrease lightness
             double newR, newG, newB;
             if (s == 0) {
@@ -154,23 +154,23 @@ public partial class MotdRenderer : UserControl {
             } else {
                 double q = newL < 0.5 ? newL * (1.0 + s) : newL + s - newL * s;
                 double p = 2.0 * newL - q;
-                newR = HueToRgb(p, q, h + 1.0 / 3.0);
-                newG = HueToRgb(p, q, h);
-                newB = HueToRgb(p, q, h - 1.0 / 3.0);
+                newR = _HueToRgb(p, q, h + 1.0 / 3.0);
+                newG = _HueToRgb(p, q, h);
+                newB = _HueToRgb(p, q, h - 1.0 / 3.0);
             }
 
             adjustedColor = Color.FromRgb((byte)(newR * 255), (byte)(newG * 255), (byte)(newB * 255));
         }
 
         // If contrast is still insufficient, use default color #555555
-        if (GetContrastRatio(adjustedColor, backgroundColor) < 4.5) {
+        if (_GetContrastRatio(adjustedColor, _backgroundColor) < 4.5) {
             return Color.FromRgb(85, 85, 85); // colorMap["f"]
         }
 
         return adjustedColor;
     }
 
-    private double HueToRgb(double p, double q, double t) {
+    private double _HueToRgb(double p, double q, double t) {
         if (t < 0) t += 1.0;
         if (t > 1) t -= 1.0;
         if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;
@@ -181,7 +181,7 @@ public partial class MotdRenderer : UserControl {
 
     public void RenderMotd(string motd, bool isWhiteBackground = true) {
         MotdCanvas.Children.Clear();
-        obfuscatedTextBlocks.Clear();
+        _obfuscatedTextBlocks.Clear();
 
         var colorMap = isWhiteBackground ? _colorMapWithWhiteBackground : _colorMapWithBlackBackground;
         string font = Setup.Ui.Font; // Assuming Setup is a static class accessible in the project
@@ -216,7 +216,6 @@ public partial class MotdRenderer : UserControl {
             double tempX = 0; // Temporary x-coordinate for width calculation
             var textBlocks = new List<TextBlock>(); // Store TextBlocks for the line
             var positions = new List<double>(); // Store x-coordinates for each TextBlock
-            var partTexts = new List<string>(); // Store text content for each part
 
             foreach (string part in parts) {
                 if (string.IsNullOrEmpty(part)) continue;
@@ -231,7 +230,7 @@ public partial class MotdRenderer : UserControl {
                         isUnderline = false;
                         isStrikethrough = false;
                         isObfuscated = false;
-                    } else if (formatMap.ContainsKey(code)) {
+                    } else if (_formatMap.ContainsKey(code)) {
                         if (code == "l") isBold = true;
                         if (code == "o") isItalic = true;
                         if (code == "n") isUnderline = true;
@@ -258,7 +257,7 @@ public partial class MotdRenderer : UserControl {
                         byte g = Convert.ToByte(hex.Substring(2, 2), 16);
                         byte b = Convert.ToByte(hex.Substring(4, 2), 16);
                         Color inputColor = Color.FromRgb(r, g, b);
-                        currentColor = new SolidColorBrush(AdjustColorForContrast(inputColor));
+                        currentColor = new SolidColorBrush(_AdjustColorForContrast(inputColor));
                         isBold = false;
                         isItalic = false;
                         isUnderline = false;
@@ -278,30 +277,28 @@ public partial class MotdRenderer : UserControl {
                     // Generate initial random characters for §k text
                     foreach (char singleChar in part) {
                         //Log(singleChar); // Assuming Log is a method accessible in the project
-                        displayText = randomChars[random.Next(randomChars.Length)].ToString();
-                        textBlock = RenderText(displayText, fontFamily, fontSize, currentColor, isBold, isItalic,
+                        displayText = _randomChars[_random.Next(_randomChars.Length)].ToString();
+                        textBlock = _RenderText(displayText, fontFamily, fontSize, currentColor, isBold, isItalic,
                             isUnderline, isStrikethrough, tempX, y, true,
-                            MeasureTextWidth(singleChar.ToString(), fontFamily, fontSize, isBold, isItalic));
-                        obfuscatedTextBlocks.Add((textBlock, singleChar.ToString()));
+                            _MeasureTextWidth(singleChar.ToString(), fontFamily, fontSize, isBold, isItalic));
+                        _obfuscatedTextBlocks.Add((textBlock, singleChar.ToString()));
                         textBlocks.Add(textBlock);
                         positions.Add(tempX);
-                        partTexts.Add(part);
-                        tempX += MeasureTextWidth(singleChar.ToString(), fontFamily, fontSize, isBold, isItalic);
+                        tempX += _MeasureTextWidth(singleChar.ToString(), fontFamily, fontSize, isBold, isItalic);
                     }
                 } else {
-                    textBlock = RenderText(displayText, fontFamily, fontSize, currentColor, isBold, isItalic,
+                    textBlock = _RenderText(displayText, fontFamily, fontSize, currentColor, isBold, isItalic,
                         isUnderline, isStrikethrough, tempX, y);
                     textBlocks.Add(textBlock);
                     positions.Add(tempX);
-                    partTexts.Add(part);
                 }
 
                 // Update tempX coordinate using original text width
                 if (!isObfuscated) {
-                    tempX += MeasureTextWidth(part, fontFamily, fontSize, isBold, isItalic);
+                    tempX += _MeasureTextWidth(part, fontFamily, fontSize, isBold, isItalic);
                 }
 
-                double textHeight = MeasureTextHeight(part, fontFamily, fontSize, isBold, isItalic);
+                double textHeight = _MeasureTextHeight(part, fontFamily, fontSize, isBold, isItalic);
                 lineHeight = textHeight > lineHeight ? textHeight : lineHeight;
                 lineWidth = tempX; // Update line width
             }
@@ -328,7 +325,7 @@ public partial class MotdRenderer : UserControl {
         }
     }
 
-    private TextBlock RenderText(string text, FontFamily fontFamily, double fontSize, Brush color,
+    private TextBlock _RenderText(string text, FontFamily fontFamily, double fontSize, Brush color,
         bool isBold, bool isItalic, bool isUnderline, bool isStrikethrough,
         double x, double y, bool withClip = false, double clipWidth = 15) {
         var textBlock = new TextBlock {
@@ -348,7 +345,7 @@ public partial class MotdRenderer : UserControl {
 
         if (withClip) {
             var clipRect = new RectangleGeometry {
-                Rect = new Rect(0, 0, clipWidth, MeasureTextHeight(text, fontFamily, fontSize, isBold, isItalic))
+                Rect = new Rect(0, 0, clipWidth, _MeasureTextHeight(text, fontFamily, fontSize, isBold, isItalic))
             };
             textBlock.Clip = clipRect;
         }
@@ -362,9 +359,9 @@ public partial class MotdRenderer : UserControl {
         return textBlock;
     }
 
-    private double MeasureTextWidth(string text, FontFamily fontFamily, double fontSize,
-        bool isBold, bool isItalic) {
-        var formattedText = new FormattedText(
+    private FormattedText _CreateFormattedText(string text, FontFamily fontFamily, double fontSize, bool isBold, bool isItalic)
+    {
+        return new FormattedText(
             text,
             System.Globalization.CultureInfo.InvariantCulture,
             FlowDirection.LeftToRight,
@@ -373,21 +370,14 @@ public partial class MotdRenderer : UserControl {
             fontSize,
             Brushes.White,
             96);
-        return formattedText.WidthIncludingTrailingWhitespace;
     }
 
-    private double MeasureTextHeight(string text, FontFamily fontFamily, double fontSize,
-        bool isBold, bool isItalic) {
-        var formattedText = new FormattedText(
-            text,
-            System.Globalization.CultureInfo.InvariantCulture,
-            FlowDirection.LeftToRight,
-            new Typeface(fontFamily, isItalic ? FontStyles.Italic : FontStyles.Normal,
-                isBold ? FontWeights.Bold : FontWeights.Normal, FontStretches.Normal),
-            fontSize,
-            Brushes.White,
-            96);
-        return formattedText.Height;
+    private double _MeasureTextWidth(string text, FontFamily fontFamily, double fontSize, bool isBold, bool isItalic) {
+        return _CreateFormattedText(text, fontFamily, fontSize, isBold, isItalic).WidthIncludingTrailingWhitespace;
+    }
+
+    private double _MeasureTextHeight(string text, FontFamily fontFamily, double fontSize, bool isBold, bool isItalic) {
+        return _CreateFormattedText(text, fontFamily, fontSize, isBold, isItalic).Height;
     }
 
     public void RenderCanvas() {
@@ -395,11 +385,11 @@ public partial class MotdRenderer : UserControl {
         MotdCanvas.UpdateLayout();
 
         // Generate static random characters for §k text
-        foreach (var item in obfuscatedTextBlocks) {
+        foreach (var item in _obfuscatedTextBlocks) {
             var textBlock = item.TextBlock;
             var originalText = item.OriginalText;
             textBlock.Text = string.Join("",
-                Enumerable.Range(0, originalText.Length).Select(i => randomChars[random.Next(randomChars.Length)]));
+                Enumerable.Range(0, originalText.Length).Select(_ => _randomChars[_random.Next(_randomChars.Length)]));
         }
 
         // Capture Canvas using RenderTargetBitmap
@@ -410,6 +400,6 @@ public partial class MotdRenderer : UserControl {
     
     public void ClearCanvas() {
         MotdCanvas.Children.Clear();
-        obfuscatedTextBlocks.Clear();
+        _obfuscatedTextBlocks.Clear();
     }
 }

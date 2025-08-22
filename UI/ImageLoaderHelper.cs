@@ -33,10 +33,9 @@ public static class ImageLoaderHelper {
     public static async Task SetImageFromBase64Async(
         string base64String, 
         Image imageElement, 
-        string fallbackImageUri = null) {
-        LogWrapper.Debug("设置图像，Base64 字符串长度：" + base64String?.Length);
-        if (imageElement == null)
-            throw new ArgumentNullException(nameof(imageElement));
+        string? fallbackImageUri = null) {
+        LogWrapper.Debug("设置图像，Base64 字符串长度：" + base64String.Length);
+        ArgumentNullException.ThrowIfNull(nameof(imageElement));
 
         if (string.IsNullOrWhiteSpace(base64String)) {
             SetFallbackImage(imageElement, fallbackImageUri);
@@ -45,7 +44,7 @@ public static class ImageLoaderHelper {
 
         try {
             // 提取 Base64 数据部分
-            var base64Data = base64String.Contains(",") 
+            var base64Data = base64String.Contains(',') 
                 ? base64String.Split(',')[1] 
                 : base64String;
 
@@ -95,7 +94,7 @@ public static class ImageLoaderHelper {
     /// </summary>
     /// <param name="imageElement">目标 Image 控件</param>
     /// <param name="fallbackImageUri">后备图像 URI</param>
-    public static void SetFallbackImage(Image imageElement, string fallbackImageUri) {
+    public static void SetFallbackImage(Image imageElement, string? fallbackImageUri) {
         try {
             if (!string.IsNullOrWhiteSpace(fallbackImageUri)) {
                 var defaultBitmap = new BitmapImage(new Uri(fallbackImageUri));
@@ -136,8 +135,7 @@ public static class ImageLoaderHelper {
         string imagePath,
         Image imageElement,
         string fallbackImageUri) {
-        if (imageElement == null)
-            throw new ArgumentNullException(nameof(imageElement));
+        ArgumentNullException.ThrowIfNull(nameof(imageElement));
 
         if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath)) {
             SetFallbackImage(imageElement, fallbackImageUri);
