@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -200,7 +201,7 @@ public class McPing : IDisposable
     {
         List<byte> handshake = [];
         handshake.AddRange(VarIntHelper.Encode(0)); //状态头 表明这是一个握手包
-        handshake.AddRange(VarIntHelper.Encode(578)); //协议头 表明请求客户端的版本
+        handshake.AddRange(VarIntHelper.Encode(772)); //协议头 表明请求客户端的版本
         var binaryIp = Encoding.UTF8.GetBytes(serverIp);
         if (binaryIp.Length > 255) throw new Exception("服务器地址过长");
         handshake.AddRange(VarIntHelper.Encode((uint)binaryIp.Length)); //服务器地址长度
@@ -220,8 +221,7 @@ public class McPing : IDisposable
         return statusRequest.ToArray();
     }
 
-    private static string _convertJNodeToMcString(JsonNode? jsonNode)
-    {
+    private static string _convertJNodeToMcString(JsonNode? jsonNode) {
         if (jsonNode == null) return string.Empty;
         StringBuilder result = new();
         Stack<JsonNode> stack = new();
@@ -286,6 +286,7 @@ public class McPing : IDisposable
             }
         }
 
+        LogWrapper.Warn("McPing",$"处理 Motd 内容完成，结果：{result}");
         return result.ToString();
     }
 
@@ -324,6 +325,7 @@ public class McPing : IDisposable
         // if (obfuscated) sb.Append("§k"); // 暂时别用
         if (underline) sb.Append("§n");
         if (strikethrough) sb.Append("§m");
+        if (color.StartsWith("#")) sb.Append(color);
         return sb.ToString();
     }
 
