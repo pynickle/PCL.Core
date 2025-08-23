@@ -34,13 +34,14 @@ public static class ImageLoaderHelper {
         string base64String, 
         Image imageElement, 
         string? fallbackImageUri = null) {
-        LogWrapper.Debug("设置图像，Base64 字符串长度：" + base64String.Length);
         ArgumentNullException.ThrowIfNull(nameof(imageElement));
-
+        
         if (string.IsNullOrWhiteSpace(base64String)) {
             SetFallbackImage(imageElement, fallbackImageUri);
             return;
         }
+        
+        LogWrapper.Debug("设置图像，Base64 字符串长度：" + base64String.Length);
 
         try {
             // 提取 Base64 数据部分

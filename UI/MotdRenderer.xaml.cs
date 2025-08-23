@@ -315,23 +315,23 @@ public partial class MotdRenderer {
                 Canvas.SetLeft(textBlocks[i], positions[i] + offsetX);
             }
 
-            var offsetY = lines.Length switch {
-                // 只有一行文本
-                1 => (canvasHeight - lineHeight) / 2,
-                // 有两行文本，并且是第一行
-                2 when lineIndex == 0 => (canvasHeight - lineHeight * 2) / 2,
-                // 其他情况（可选，根据你的逻辑需要）
-                _ => 0 // 或者抛出异常，或者返回其他默认值
-            };
+            switch (lines.Length) {
+                case 1:
+                    var offsetY = (canvasHeight - lineHeight) / 2;
+                    foreach (var textBlock in textBlocks)
+                    {
+                        Canvas.SetTop(textBlock, offsetY);
+                    }
+                    break;
 
-            // 无论哪种情况，都在这里统一设置位置
-            foreach (var textBlock in textBlocks) {
-                Canvas.SetTop(textBlock, offsetY);
-            }
-
-            // 只有在特定条件下才更新 y 变量
-            if (lines.Length == 2 && lineIndex == 0) {
-                y = lineHeight + offsetY;
+                case 2 when lineIndex == 0:
+                    offsetY = (canvasHeight - lineHeight * 2) / 2;
+                    foreach (var textBlock in textBlocks)
+                    {
+                        Canvas.SetTop(textBlock, offsetY);
+                    }
+                    y = lineHeight + offsetY;
+                    break;
             }
         }
     }
