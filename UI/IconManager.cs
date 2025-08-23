@@ -41,9 +41,7 @@ public class IconManager : INotifyPropertyChanged {
 
     // 可选：添加移除方法
     public void RemoveIconByName(string name) {
-        if (_iconIndex.TryGetValue(name, out var _)) {
-            _iconIndex.Remove(name);
-        }
+        _iconIndex.Remove(name);
     }
     
     // 从 XAML 字符串加载图标

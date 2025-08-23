@@ -5,14 +5,12 @@ using System.Runtime.InteropServices;
 
 namespace PCL.Core.Net;
 
-public class NDnsQuery {
-    [DllImport("dnsapi", EntryPoint = "DnsQuery_W", CharSet = CharSet.Unicode, SetLastError = true,
-        ExactSpelling = true)]
-    private static extern int DnsQuery(string pszName, QueryTypes wType, QueryOptions options, int aipServers,
-        ref IntPtr ppQueryResults, int pReserved);
+public partial class NDnsQuery {
+    [LibraryImport("dnsapi", EntryPoint = "DnsQuery_W", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int _DnsQuery(string pszName, QueryTypes wType, QueryOptions options, int aipServers, ref IntPtr ppQueryResults, int pReserved);
 
-    [DllImport("dnsapi", CharSet = CharSet.Auto, SetLastError = true)]
-    private static extern void DnsRecordListFree(IntPtr pRecordList, int FreeType);
+    [LibraryImport("dnsapi")]
+    private static partial void _DnsRecordListFree(IntPtr pRecordList, int freeType);
 
     public static List<string> GetSRVRecords(string needle) {
         var ptr1 = IntPtr.Zero;
@@ -23,7 +21,7 @@ public class NDnsQuery {
 
         var res = new List<string>();
         try {
-            var num1 = DnsQuery(needle, QueryTypes.DNS_TYPE_SRV, QueryOptions.DNS_QUERY_STANDARD, 0, ref ptr1, 0);
+            var num1 = _DnsQuery(needle, QueryTypes.DNS_TYPE_SRV, QueryOptions.DNS_QUERY_STANDARD, 0, ref ptr1, 0);
             if (num1 != 0) {
                 // 9003 is DNS_ERROR_RCODE_NAME_ERROR, meaning the name doesn't exist
                 return num1 == 9003 ? [] : throw new Win32Exception(num1);
@@ -42,7 +40,7 @@ public class NDnsQuery {
                 ptr2 = recSRV.pNext;
             }
         } finally {
-            DnsRecordListFree(ptr1, 0);
+            _DnsRecordListFree(ptr1, 0);
         }
 
         return res;

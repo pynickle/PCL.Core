@@ -68,12 +68,16 @@ public partial class MotdRenderer {
     private readonly List<(TextBlock TextBlock, string OriginalText)> _obfuscatedTextBlocks = [];
 
     private readonly Random _random = new();
-    private readonly string _randomChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
+    private const string RandomChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
     private readonly Color _backgroundColor = Color.FromRgb(243, 246, 250); // #f3f6fa
     
     // 编译器将在编译时生成这个方法的实现
     [GeneratedRegex("^#[0-9A-Fa-f]{6}$", RegexOptions.Compiled)]
     private static partial Regex _HexColorRegex();
+    
+    // Regex to match § codes and RGB colors
+    [GeneratedRegex("(§[0-9a-fk-oAr]|#[0-9A-Fa-f]{6})", RegexOptions.Compiled)]
+    private static partial Regex _MotdCodeRegex();
 
     public MotdRenderer() {
         InitializeComponent(); // 初始化 XAML 定义的控件
@@ -85,22 +89,16 @@ public partial class MotdRenderer {
         timer.Start();
     }
 
-    public void Clear() {
-        
-    }
-
     private void _UpdateObfuscatedText(object? sender, EventArgs e) {
-        foreach (var item in _obfuscatedTextBlocks) {
-            var textBlock = item.TextBlock;
-            var originalText = item.OriginalText;
+        foreach (var (textBlock, originalText) in _obfuscatedTextBlocks) {
             // Generate random characters of the same length as the original text
             var obfuscated = string.Join("",
-                Enumerable.Range(0, originalText.Length).Select(_ => _randomChars[_random.Next(_randomChars.Length)]));
+                Enumerable.Range(0, originalText.Length).Select(_ => RandomChars[_random.Next(RandomChars.Length)]));
             textBlock.Text = obfuscated;
         }
     }
 
-    private double _GetRelativeLuminance(Color color) {
+    private static double _GetRelativeLuminance(Color color) {
         var r = color.R / 255.0;
         var g = color.G / 255.0;
         var b = color.B / 255.0;
@@ -110,7 +108,7 @@ public partial class MotdRenderer {
         return 0.2126 * rL + 0.7152 * gL + 0.0722 * bL;
     }
 
-    private double _GetContrastRatio(Color foreground, Color background) {
+    private static double _GetContrastRatio(Color foreground, Color background) {
         var l1 = _GetRelativeLuminance(foreground);
         var l2 = _GetRelativeLuminance(background);
         return (Math.Max(l1, l2) + 0.05) / (Math.Min(l1, l2) + 0.05);
@@ -155,8 +153,8 @@ public partial class MotdRenderer {
                 newG = newL;
                 newB = newL;
             } else {
-                double q = newL < 0.5 ? newL * (1.0 + s) : newL + s - newL * s;
-                double p = 2.0 * newL - q;
+                var q = newL < 0.5 ? newL * (1.0 + s) : newL + s - newL * s;
+                var p = 2.0 * newL - q;
                 newR = _HueToRgb(p, q, h + 1.0 / 3.0);
                 newG = _HueToRgb(p, q, h);
                 newB = _HueToRgb(p, q, h - 1.0 / 3.0);
@@ -169,7 +167,7 @@ public partial class MotdRenderer {
         return _GetContrastRatio(adjustedColor, _backgroundColor) < 4.5 ? Color.FromRgb(85, 85, 85) : adjustedColor;
     }
 
-    private double _HueToRgb(double p, double q, double t) {
+    private static double _HueToRgb(double p, double q, double t) {
         if (t < 0) t += 1.0;
         if (t > 1) t -= 1.0;
         if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;
@@ -187,27 +185,24 @@ public partial class MotdRenderer {
         var fontFamily = new FontFamily(string.IsNullOrWhiteSpace(font)
             ? "./Resources/#PCL English, Segoe UI, Microsoft YaHei UI"
             : font);
-        double fontSize = 12;
+        const double fontSize = 12;
         var canvasWidth = MotdCanvas.ActualWidth > 0 ? MotdCanvas.ActualWidth : 300; // Prevent zero width
         var canvasHeight = MotdCanvas.ActualHeight > 0 ? MotdCanvas.ActualHeight : 34; // Prevent zero height
         double y = 10;
 
-        // Regex to match § codes and RGB colors
-        var regex = new Regex("(§[0-9a-fk-oAr]|#[0-9A-Fa-f]{6})");
-
         // Split multi-line MOTD
         motd = motd.Replace("\n", "\r\n");
-        string[] lines = motd.Split("\r\n");
-        Brush currentColor = colorMap["f"];
+        var lines = motd.Split("\r\n");
+        var currentColor = colorMap["f"];
         var isBold = false;
         var isItalic = false;
         var isUnderline = false;
         var isStrikethrough = false;
         var isObfuscated = false;
 
-        for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++) {
+        for (var lineIndex = 0; lineIndex < lines.Length; lineIndex++) {
             var line = lines[lineIndex].Trim();
-            var parts = regex.Split(line);
+            var parts = _MotdCodeRegex().Split(line);
 
             // Calculate line width
             double lineWidth = 0;
@@ -221,7 +216,7 @@ public partial class MotdRenderer {
 
                 // Handle § color codes
                 if (part.StartsWith('§') && part.Length == 2) {
-                    var code = part.Substring(1).ToLower();
+                    var code = part[1..].ToLower();
                     if (colorMap.TryGetValue(code, out var brush)) {
                         currentColor = brush;
                         isBold = false;
@@ -263,11 +258,11 @@ public partial class MotdRenderer {
                 // Handle RGB color codes
                 if (_HexColorRegex().IsMatch(part)) {
                     try {
-                        var hex = part.Substring(1);
-                        var r = Convert.ToByte(hex.Substring(0, 2), 16);
+                        var hex = part[1..];
+                        var r = Convert.ToByte(hex[..2], 16);
                         var g = Convert.ToByte(hex.Substring(2, 2), 16);
                         var b = Convert.ToByte(hex.Substring(4, 2), 16);
-                        Color inputColor = Color.FromRgb(r, g, b);
+                        var inputColor = Color.FromRgb(r, g, b);
                         currentColor = new SolidColorBrush(_AdjustColorForContrast(inputColor));
                         isBold = false;
                         isItalic = false;
@@ -282,13 +277,13 @@ public partial class MotdRenderer {
                 }
 
                 // Render text, always use original text for width calculation
-                string displayText = part;
+                var displayText = part;
                 TextBlock textBlock;
                 if (isObfuscated) {
                     // Generate initial random characters for §k text
-                    foreach (char singleChar in part) {
+                    foreach (var singleChar in part) {
                         //Log(singleChar); // Assuming Log is a method accessible in the project
-                        displayText = _randomChars[_random.Next(_randomChars.Length)].ToString();
+                        displayText = RandomChars[_random.Next(RandomChars.Length)].ToString();
                         textBlock = _RenderText(displayText, fontFamily, fontSize, currentColor, isBold, isItalic,
                             isUnderline, isStrikethrough, tempX, y, true,
                             _MeasureTextWidth(singleChar.ToString(), fontFamily, fontSize, isBold, isItalic));
@@ -403,7 +398,7 @@ public partial class MotdRenderer {
         // Generate static random characters for §k text
         foreach (var (textBlock, originalText) in _obfuscatedTextBlocks) {
             textBlock.Text = string.Join("",
-                Enumerable.Range(0, originalText.Length).Select(_ => _randomChars[_random.Next(_randomChars.Length)]));
+                Enumerable.Range(0, originalText.Length).Select(_ => RandomChars[_random.Next(RandomChars.Length)]));
         }
 
         // Capture Canvas using RenderTargetBitmap
